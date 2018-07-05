@@ -1,0 +1,3 @@
+# js2dts-intellij
+## Pending ...
+## See Test

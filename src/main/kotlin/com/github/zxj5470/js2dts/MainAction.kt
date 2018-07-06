@@ -1,6 +1,7 @@
 package com.github.zxj5470.js2dts
 
 import com.intellij.lang.javascript.structureView.JSStructureViewElement
+import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -16,6 +17,7 @@ class MainAction : AnAction() {
 	}
 }
 
+var i = 0
 /**
  *
  * @receiver JSStructureViewElement
@@ -23,52 +25,64 @@ class MainAction : AnAction() {
  */
 fun JSStructureViewElement.doRec(int: Int) {
 	val tab = "\t".repeat(int)
-	val tabinc = "\t".repeat(int + 1)
-	this.presentation.apply {
-		val icon = this.getIcon(false) ?: return@apply
-		val typeName = icon.toString().substringAfterLast("/").substringBefore(".")
-		var str = when (typeName) {
-			JsClass -> "module "
-			StaticMark -> "staticMark "
-			Field -> ""
-			Method -> "function "
-			Js -> ""
-			Var -> ""
-			Property -> ""
-			else -> ""
-		}
-		val text = this.presentableText?.replace("*", "any")
-				?: return@doRec
-		if (str == "staticMark ") {
-//			str = "_S "
-			if ('(' in text && ')' in text) {
-				println("$tab$CLASS ${text.substringBefore('(')} {")
-				val params = text.substringAfter('(').substringBefore(')')
-				println("$tabinc$CONSTRUCTOR($params)")
-			} else {
-				if (this@doRec.children.isNotEmpty()) {
-					println("$tab$ENUM $text {")
-				} else {
-					println("$tab${this@doRec.value.text.replace(": ", " = ")},")
-				}
-			}
-		} else {
-			if (str == "function ") {
-				str = ""
-			}
-			print("$tab$str$text")
-			if (this@doRec.children.isNotEmpty()) print(" {\n")
-			else println()
-		}
-	}
+	val tabPlus = "\t".repeat(int + 1)
+	this.presentation.presentationShow(int, this@doRec)
 	this.children.apply {
 		if (this.isEmpty()) return@apply
 		else {
-			forEach {
+			forEachIndexed { index, it ->
 				(it as JSStructureViewElement).doRec(int + 1)
+				if (index == this.lastIndex) {
+					if (i != 0) {
+						i--
+						println("$tab}")
+					}
+
+				}
 			}
 		}
 	}
-	if (this@doRec.children.isNotEmpty())
-		println("$tab}")
 }
+
+fun ItemPresentation.presentationShow(int: Int, viewElement: JSStructureViewElement) {
+	val tab = "\t".repeat(int)
+	val tabPlus = "\t".repeat(int + 1)
+	val icon = getIcon(false) ?: return
+	val typeName = icon.toString().substringAfterLast("/").substringBefore(".")
+	val text = presentableText?.replace("*", "any") ?: return
+	val str = when (typeName) {
+		JsClass -> "$tab$MODULE $text" + s(viewElement)
+		StaticMark -> {
+			if ('(' in text && ')' in text) {
+				val params = text.substringAfter('(').substringBefore(')')
+				i++
+				"$tab$CLASS ${text.substringBefore('(')} {\n" +
+						"$tabPlus$CONSTRUCTOR($params)"
+			} else {
+				if (viewElement.children.isNotEmpty()) {
+					i++
+					"$tab$ENUM $text {"
+				} else {
+					"$tab${viewElement.value.text.replace(": ", " = ")},"
+				}
+			}
+		}
+		Field -> "$tab$text;"
+		Method -> "$tab$text"
+		Js -> null
+		Var -> "$tab$LET $text"
+		Property -> null
+		else -> null
+	}
+	if (str != null)
+		println(str)
+
+}
+
+private fun s(jsStructureViewElement: JSStructureViewElement) =
+		if (jsStructureViewElement.children.isNotEmpty()) {
+			i++
+			" {"
+		} else {
+			""
+		}
